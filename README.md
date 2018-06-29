@@ -60,10 +60,29 @@ Build
 
 #### Basic *nix build instructions:
  * ./autogen.sh	# only needed if building from git repo
+
  * ./nomacro.pl	# only needed if building on Mac OS X or with Clang
+
  * ./configure CFLAGS="*-march=native*"
    * # Use -march=native if building for a single machine
+
  * make
+
+Another build method:
+
+- ./autogen.sh	# only needed if building from git repo
+
+  - ./nomacro.pl	# only needed if building on Mac OS X or with Clang
+
+- ./configure CFLAGS="*-march=native*"
+
+  - # Use -march=native if building for a single machine
+
+- make
+
+- cmake .
+
+- make
 
 #### Notes for AIX users:
  * To build a 64-bit binary, export OBJECT_MODE=64
@@ -83,10 +102,43 @@ Build
      * # Use -march=native if building for a single machine
    * make
 
+Another build method:
+
+- Install MinGW and the MSYS Developer Tool Kit (http://www.mingw.org/)
+
+  - Make sure you have mstcpip.h in MinGW\include
+
+- If using MinGW-w64, install pthreads-w64
+
+- Install libcurl devel (http://curl.haxx.se/download.html)
+
+  - Make sure you have libcurl.m4 in MinGW\share\aclocal
+  - Make sure you have curl-config in MinGW\bin
+
+- Install openssl devel (https://www.openssl.org/related/binaries.html)
+
+- In the MSYS shell, run:
+
+  - ./autogen.sh	# only needed if building from git repo
+
+  - LIBCURL="-lcurldll" ./configure CFLAGS="*-march=native*"
+
+    - # Use -march=native if building for a single machine
+
+  - make
+
+  - cmake -DCURL_LIBRARY=C:\msys64\mingw64\lib -DCURL_INCLUDE_DIR=C:\msys64\mingw64\include\curl 
+
+  - make
+
+
+
 #### Architecture-specific notes:
+
  * ARM:
    * No runtime CPU detection. The miner can take advantage of some instructions specific to ARMv5E and later processors, but the decision whether to use them is made at compile time, based on compiler-defined macros.
    * To use NEON instructions, add "-mfpu=neon" to CFLAGS.
+
  * x86:
    * The miner checks for SSE2 instructions support at runtime, and uses them if they are available.
  * x86-64:	
