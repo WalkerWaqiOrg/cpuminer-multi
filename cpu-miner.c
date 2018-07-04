@@ -38,7 +38,7 @@
 #include <curl/curl.h>
 #include "compat.h"
 #include "miner.h"
-#include "rr_libs/rr_libs.h"
+#include "rr_libs/include/rr_libs.h"
 
 #define PROGRAM_NAME		"minerd"
 #define LP_SCANTIME		60
