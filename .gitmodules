@@ -1,0 +1,4 @@
+[submodule "rr_libs"]
+	path = rr_libs
+	url = https://github.com/WalkerWaqiOrg/rr_libs.git
+	branch = cryptonote
