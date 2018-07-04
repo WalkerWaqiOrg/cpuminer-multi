@@ -126,6 +126,8 @@ else
 	JANSSON_LIBS=-ljansson
 fi
 
+RR_LIBS="-L./rr_libs/ -lrr_libs -lcncrypto"
+
 LIBCURL_CHECK_CONFIG(, 7.15.2, ,
   [AC_MSG_ERROR([Missing required libcurl >= 7.15.2])])
 
@@ -133,6 +135,7 @@ AC_SUBST(JANSSON_LIBS)
 AC_SUBST(PTHREAD_FLAGS)
 AC_SUBST(PTHREAD_LIBS)
 AC_SUBST(WS2_LIBS)
+AC_SUBST(RR_LIBS)
 
 AC_CONFIG_FILES([
 	Makefile

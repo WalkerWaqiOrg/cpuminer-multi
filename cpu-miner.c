@@ -38,6 +38,7 @@
 #include <curl/curl.h>
 #include "compat.h"
 #include "miner.h"
+#include "rr_libs/rr_libs.h"
 
 #define PROGRAM_NAME		"minerd"
 #define LP_SCANTIME		60
@@ -114,6 +115,7 @@ enum algos {
     ALGO_X14,         /* X14 */
     ALGO_X15,         /* X15 Whirlpool */
     ALGO_CRYPTONIGHT, /* CryptoNight */
+    ALGO_RR,         /* rr hash */
 };
 
 static const char *algo_names[] = {
@@ -131,6 +133,7 @@ static const char *algo_names[] = {
     [ALGO_X14] =         "x14",
     [ALGO_X15] =         "x15",
     [ALGO_CRYPTONIGHT] = "cryptonight",
+    [ALGO_RR] =          "rr",
 };
 
 bool opt_debug = false;
@@ -560,6 +563,7 @@ static void share_result(int result, struct work *work, const char *reason) {
 
     switch (opt_algo) {
     case ALGO_CRYPTONIGHT:
+    case ALGO_RR:
         applog(LOG_INFO, "accepted: %lu/%lu (%.2f%%), %.2f H/s at diff %g %s",
                 accepted_count, accepted_count + rejected_count,
                 100. * accepted_count / (accepted_count + rejected_count), hashrate,
@@ -598,11 +602,15 @@ static bool submit_upstream_work(CURL *curl, struct work *work) {
         char *ntimestr, *noncestr, *xnonce2str;
 
         if (jsonrpc_2) {
-            noncestr = bin2hex(((const unsigned char*)work->data) + 39, 4);
             char hash[32];
             switch(opt_algo) {
+            case ALGO_RR:
+                noncestr = bin2hex(((const unsigned char*)work->data) + 84, 4);
+                rr_slow_hash(work->data, 88, hash);
+                break;
             case ALGO_CRYPTONIGHT:
             default:
+                noncestr = bin2hex(((const unsigned char*)work->data) + 39, 4);
                 cryptonight_hash(hash, work->data, 76);
             }
             char *hashhex = bin2hex(hash, 32);
@@ -1068,7 +1076,7 @@ static void *miner_thread(void *userdata) {
             exit(1);
         }
     }
-    uint32_t *nonceptr = (uint32_t*) (((char*)work.data) + (jsonrpc_2 ? 39 : 76));
+    uint32_t *nonceptr = (uint32_t*) (((char*)work.data) + (jsonrpc_2 ? (opt_algo == ALGO_RR ? 84 : 39) : 76));
 
     while (1) {
         uint64_t hashes_done;
@@ -1081,8 +1089,9 @@ static void *miner_thread(void *userdata) {
                 sleep(1);
             pthread_mutex_lock(&g_work_lock);
             if ((*nonceptr) >= end_nonce
-           	    && !(jsonrpc_2 ? memcmp(work.data, g_work.data, 39) ||
-           	            memcmp(((uint8_t*) work.data) + 43, ((uint8_t*) g_work.data) + 43, 33)
+           	    && !(jsonrpc_2 ? opt_algo == ALGO_RR ? memcmp(work.data, g_work.data, 84) :
+                (memcmp(work.data, g_work.data, 39) ||
+           	            memcmp(((uint8_t*) work.data) + 43, ((uint8_t*) g_work.data) + 43, 33))
            	      : memcmp(work.data, g_work.data, 76)))
                 stratum_gen_work(&stratum, &g_work);
         } else {
@@ -1105,10 +1114,12 @@ static void *miner_thread(void *userdata) {
                 continue;
             }
         }
-        if (jsonrpc_2 ? memcmp(work.data, g_work.data, 39) || memcmp(((uint8_t*) work.data) + 43, ((uint8_t*) g_work.data) + 43, 33) : memcmp(work.data, g_work.data, 76)) {
+        if (jsonrpc_2 ? (opt_algo == ALGO_RR ? memcmp(work.data, g_work.data, 84) :
+            memcmp(work.data, g_work.data, 39) || memcmp(((uint8_t*) work.data) + 43, ((uint8_t*) g_work.data) + 43, 33)) : 
+            memcmp(work.data, g_work.data, 76)) {
             work_free(&work);
             work_copy(&work, &g_work);
-            nonceptr = (uint32_t*) (((char*)work.data) + (jsonrpc_2 ? 39 : 76));
+            nonceptr = (uint32_t*) (((char*)work.data) + (jsonrpc_2 ? (opt_algo == ALGO_RR ? 84 : 39) : 76));
             *nonceptr = 0xffffffffU / opt_n_threads * thr_id;
         } else
             ++(*nonceptr);
@@ -1128,6 +1139,7 @@ static void *miner_thread(void *userdata) {
                 max64 = opt_scrypt_n < 16 ? 0x3ffff : 0x3fffff / opt_scrypt_n;
                 break;
             case ALGO_CRYPTONIGHT:
+            case ALGO_RR:
                 max64 = 0x40LL;
                 break;
             case ALGO_FRESH:
@@ -1218,6 +1230,10 @@ static void *miner_thread(void *userdata) {
             rc = scanhash_cryptonight(thr_id, work.data, work.target,
                     max_nonce, &hashes_done);
             break;
+        case ALGO_RR:
+            rc = scanhash_rr(thr_id, work.data, work.target,
+                    max_nonce, &hashes_done);
+            break;
 
         default:
             /* should never happen */
@@ -1236,6 +1252,7 @@ static void *miner_thread(void *userdata) {
         if (!opt_quiet) {
             switch(opt_algo) {
             case ALGO_CRYPTONIGHT:
+            case ALGO_RR:
                 applog(LOG_INFO, "thread %d: %lu hashes, %.2f H/s", thr_id,
                         hashes_done, thr_hashrates[thr_id]);
                 break;
@@ -1254,6 +1271,7 @@ static void *miner_thread(void *userdata) {
             if (i == opt_n_threads) {
                 switch(opt_algo) {
                 case ALGO_CRYPTONIGHT:
+                case ALGO_RR:
                     applog(LOG_INFO, "Total: %s H/s", hashrate);
                     break;
                 default:
@@ -1852,7 +1870,7 @@ int main(int argc, char *argv[]) {
 		init_quarkhash_contexts();
 	} else if (opt_algo == ALGO_BLAKE) {
 		init_blakehash_contexts();
-	} else if(opt_algo == ALGO_CRYPTONIGHT) {
+	} else if(opt_algo == ALGO_CRYPTONIGHT || opt_algo == ALGO_RR) {
 		jsonrpc_2 = true;
 		aes_ni_supported = has_aes_ni();
 		applog(LOG_INFO, "Using JSON-RPC 2.0");
@@ -2011,5 +2029,25 @@ int main(int argc, char *argv[]) {
 
 	applog(LOG_INFO, "workio thread dead, exiting.");
 
+	return 0;
+}
+
+int scanhash_rr(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
+		uint32_t max_nonce, uint64_t *hashes_done) {
+	uint32_t *nonceptr = (uint32_t*) (((char*)pdata) + 39);
+	uint32_t n = *nonceptr - 1;
+	const uint32_t first_nonce = n + 1;
+	uint32_t hash[8];
+
+		do {
+			*nonceptr = ++n;
+			rr_slow_hash(pdata, 88, hash);
+			if (unlikely(hash[7] < ptarget[7])) {
+				*hashes_done = n - first_nonce + 1;
+				return true;
+			}
+		} while (likely((n <= max_nonce && !work_restart[thr_id].restart)));
+
+	*hashes_done = n - first_nonce + 1;
 	return 0;
 }
