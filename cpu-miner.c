@@ -2032,20 +2032,42 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
+void transfer_target_to_256bits(uint32_t target, uint32_t *target256) {
+    memset(target256, 0, 8);
+
+    int size = target >> 24;
+    uint32_t word = target & 0x007fffff;
+    if (size <= 3) {
+        word >>= 8 * (3 - size);
+        target256[7] = word;
+    } else {
+        target256[7 - (size - 3)/4] = word << 8 * ((size - 3) % 4);
+        target256[7 - ((size - 3)/4 - 1)] = word << 8 * ((4 - (size - 3)) % 4);
+    }
+}
+
 int scanhash_rr(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
 		uint32_t max_nonce, uint64_t *hashes_done) {
 	uint32_t *nonceptr = (uint32_t*) (((char*)pdata) + 39);
 	uint32_t n = *nonceptr - 1;
 	const uint32_t first_nonce = n + 1;
 	uint32_t hash[8];
+    uint32_t target[8];
+    transfer_target_to_256bits(ptarget, target);
 
 		do {
 			*nonceptr = ++n;
 			rr_slow_hash(pdata, 88, hash);
-			if (unlikely(hash[7] < ptarget[7])) {
+            int i;
+            for (i = 7; i <= 0; --i) {
+                if (hash[i] >= target[i]) {
+                    break;
+                }
+            }
+            if (i == 0) {
 				*hashes_done = n - first_nonce + 1;
 				return true;
-			}
+            }
 		} while (likely((n <= max_nonce && !work_restart[thr_id].restart)));
 
 	*hashes_done = n - first_nonce + 1;
