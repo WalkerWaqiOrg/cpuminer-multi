@@ -173,6 +173,7 @@ struct work_restart *work_restart = NULL;
 static struct stratum_ctx stratum;
 static char rpc2_id[64] = "";
 static char *rpc2_blob = NULL;
+static char rpc2_hex[88];
 static int rpc2_bloblen = 0;
 static uint32_t rpc2_target = 0;
 static char *rpc2_job_id = NULL;
@@ -186,6 +187,13 @@ static pthread_mutex_t rpc2_login_lock;
 static unsigned long accepted_count = 0L;
 static unsigned long rejected_count = 0L;
 static double *thr_hashrates;
+
+static void transfer_target_to_256bits(uint32_t target, unsigned char *target256);
+
+//static void transfer_target_to_256bits(uint32_t target, uint32_t *target256);
+
+static int scanhash_rr(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
+		uint32_t max_nonce, uint64_t *hashes_done);
 
 #ifdef HAVE_GETOPT_LONG
 #include <getopt.h>
@@ -405,13 +413,13 @@ bool rpc2_job_decode(const json_t *job, struct work *work) {
         return false;
     }
     json_t *tmp;
-    tmp = json_object_get(job, "job_id");
+    tmp = json_object_get(job, "id");
     if (!tmp) {
         applog(LOG_ERR, "JSON inval job id");
         goto err_out;
     }
     const char *job_id = json_string_value(tmp);
-    tmp = json_object_get(job, "blob");
+    tmp = json_object_get(job, "job");
     if (!tmp) {
         applog(LOG_ERR, "JSON inval blob");
         goto err_out;
@@ -430,6 +438,7 @@ bool rpc2_job_decode(const json_t *job, struct work *work) {
             pthread_mutex_unlock(&rpc2_job_lock);
             goto err_out;
         }
+        memcpy(rpc2_hex, hexblob, 88);
         if (rpc2_blob) {
             free(rpc2_blob);
         }
@@ -615,8 +624,8 @@ static bool submit_upstream_work(CURL *curl, struct work *work) {
             }
             char *hashhex = bin2hex(hash, 32);
             snprintf(s, JSON_BUF_LEN,
-                    "{\"method\": \"submit\", \"params\": {\"id\": \"%s\", \"job_id\": \"%s\", \"nonce\": \"%s\", \"result\": \"%s\"}, \"id\":1}\r\n",
-                    rpc2_id, work->job_id, noncestr, hashhex);
+                    "{\"method\": \"submit\", \"params\": {\"id\": \"%s\", \"hash\": \"%s\", \"nonce\": \"%s\"}}\r\n",
+                    work->job_id, hashhex, noncestr);
             free(hashhex);
         } else {
             le32enc(&ntime, work->data[17]);
@@ -1085,7 +1094,7 @@ static void *miner_thread(void *userdata) {
         int rc;
 
         if (have_stratum) {
-            while (!jsonrpc_2 && time(NULL) >= g_work_time + 120)
+            while (time(NULL) >= g_work_time + 120)
                 sleep(1);
             pthread_mutex_lock(&g_work_lock);
             if ((*nonceptr) >= end_nonce
@@ -1234,7 +1243,6 @@ static void *miner_thread(void *userdata) {
             rc = scanhash_rr(thr_id, work.data, work.target,
                     max_nonce, &hashes_done);
             break;
-
         default:
             /* should never happen */
             goto out;
@@ -2032,43 +2040,101 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-void transfer_target_to_256bits(uint32_t target, uint32_t *target256) {
+/*static void transfer_target_to_256bits(uint32_t target, uint32_t *target256) {
     memset(target256, 0, 8);
 
+    target = swab32(target);
     int size = target >> 24;
     uint32_t word = target & 0x007fffff;
+
     if (size <= 3) {
         word >>= 8 * (3 - size);
         target256[7] = word;
     } else {
-        target256[7 - (size - 3)/4] = word << 8 * ((size - 3) % 4);
-        target256[7 - ((size - 3)/4 - 1)] = word << 8 * ((4 - (size - 3)) % 4);
+        if (((size - 3) % 4) == 0) {
+            target256[7 - (size - 3)/4] = word;
+        } else {
+            target256[7 - (size - 3)/4] = word << (8 * ((size - 3) % 4));
+            target256[7 - ((size - 3)/4 - 1)] = word << (8 * (4 - ((size - 3) % 4)));
+        }
     }
 }
 
-int scanhash_rr(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
+static int scanhash_rr(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
 		uint32_t max_nonce, uint64_t *hashes_done) {
-	uint32_t *nonceptr = (uint32_t*) (((char*)pdata) + 39);
+	uint32_t *nonceptr = (uint32_t*) (((char*)pdata) + 84);
 	uint32_t n = *nonceptr - 1;
 	const uint32_t first_nonce = n + 1;
-	uint32_t hash[8];
     uint32_t target[8];
-    transfer_target_to_256bits(ptarget, target);
+    memset(target, 0, sizeof(target));
+    transfer_target_to_256bits(ptarget[7], target);
 
-		do {
-			*nonceptr = ++n;
-			rr_slow_hash(pdata, 88, hash);
-            int i;
-            for (i = 7; i <= 0; --i) {
-                if (hash[i] >= target[i]) {
-                    break;
-                }
+    unsigned char hash[32];
+    memset(hash, 0, sizeof(hash));
+
+    do {
+        *nonceptr = ++n;
+        rr_slow_hash(pdata, 88, hash);
+        if ((uint32_t)(hash[0]) <= target[0]) { // todo: verify
+            *hashes_done = n - first_nonce + 1;
+            return true;
+        }
+    } while (likely((n <= max_nonce && !work_restart[thr_id].restart)));
+
+	*hashes_done = n - first_nonce + 1;
+	return 0;
+}*/
+
+static void transfer_target_to_256bits(uint32_t target, unsigned char *target256) {
+    target = swab32(target);
+    int size = target >> 24;
+    uint32_t word = target & 0x007fffff;
+
+    if (size <= 3) {
+        word >>= 8 * (3 - size);
+        memcpy(target256 + 28, &word, 4);
+    } else {
+        int bits_of_left_shift = size - 3;
+        word = swab32(word);
+        memcpy(target256 + 28 - bits_of_left_shift, &word, 4);
+    }
+}
+
+static int scanhash_rr(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
+		uint32_t max_nonce, uint64_t *hashes_done) {
+	uint32_t *nonceptr = (uint32_t*) (((char*)pdata) + 84);
+	uint32_t n = *nonceptr - 1;
+	const uint32_t first_nonce = n + 1;
+    unsigned char target256[32];
+    memset(target256, 0, sizeof(target256));
+    transfer_target_to_256bits(ptarget[7], target256);
+
+    unsigned char hash[32];
+    memset(hash, 0, sizeof(hash));
+    unsigned char hash_buf[32];
+    memset(hash_buf, 0, sizeof(hash_buf));
+
+    do {
+        *nonceptr = ++n;
+        rr_slow_hash(pdata, 88, hash);
+        for (int j = 0; j < sizeof(hash); ++j) {
+            hash_buf[sizeof(hash) - 1 - j] = hash[j];
+        }
+        bool found = false;
+        for (int i = 0; i < sizeof(hash_buf); ++i) {
+            if ((hash_buf[i]) > target256[i]) {
+                found = false;
+                break;
+            } else if ((hash_buf[i]) < target256[i]) {
+                found = true;
+                break;
             }
-            if (i == 0) {
-				*hashes_done = n - first_nonce + 1;
-				return true;
-            }
-		} while (likely((n <= max_nonce && !work_restart[thr_id].restart)));
+        }
+        if (found) {
+            *hashes_done = n - first_nonce + 1;
+            return true;
+        }
+    } while (likely((n <= max_nonce && !work_restart[thr_id].restart)));
 
 	*hashes_done = n - first_nonce + 1;
 	return 0;

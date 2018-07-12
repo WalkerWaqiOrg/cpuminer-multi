@@ -935,9 +935,8 @@ bool stratum_authorize(struct stratum_ctx *sctx, const char *user, const char *p
 	bool ret = false;
 
 	if(jsonrpc_2) {
-        s = malloc(300 + strlen(user) + strlen(pass));
-        sprintf(s, "{\"method\": \"login\", \"params\": {\"login\": \"%s\", \"pass\": \"%s\", \"agent\": \"cpuminer-multi/0.1\"}, \"id\": 1}",
-                user, pass);
+        s = malloc(80 + strlen(user));
+        sprintf(s, "{\"method\": \"login\", \"params\": {\"user\": \"%s\"}}", user);
 	} else {
         s = malloc(80 + strlen(user) + strlen(pass));
         sprintf(s, "{\"id\": 2, \"method\": \"mining.authorize\", \"params\": [\"%s\", \"%s\"]}",
@@ -947,7 +946,7 @@ bool stratum_authorize(struct stratum_ctx *sctx, const char *user, const char *p
 	if (!stratum_send_line(sctx, s))
 		goto out;
 
-	while (1) {
+	/*while (1) {
 		sret = stratum_recv_line(sctx);
 		if (!sret)
 			goto out;
@@ -978,7 +977,7 @@ bool stratum_authorize(struct stratum_ctx *sctx, const char *user, const char *p
         pthread_mutex_lock(&sctx->work_lock);
         if(job_val) rpc2_job_decode(job_val, &sctx->work);
         pthread_mutex_unlock(&sctx->work_lock);
-    }
+    }*/
 
 	ret = true;
 
@@ -1200,6 +1199,11 @@ bool stratum_handle_method(struct stratum_ctx *sctx, const char *s)
     if (jsonrpc_2) {
         if (!strcasecmp(method, "job")) {
             ret = stratum_2_job(sctx, params);
+            goto out;
+        }
+        if (!strcasecmp(method, "error")) {
+            //ret = stratum_2_job(sctx, params); todo
+			ret = true;
             goto out;
         }
     } else {
