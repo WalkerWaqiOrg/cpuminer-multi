@@ -608,10 +608,12 @@ static bool submit_upstream_work(CURL *curl, struct work *work) {
 
     if (have_stratum) {
         uint32_t ntime, nonce;
-        char *ntimestr, *noncestr, *xnonce2str;
+        char *ntimestr, *noncestr, *xnonce2str, *noncestr_buf;
+        noncestr_buf = malloc(8);
 
         if (jsonrpc_2) {
             char hash[32];
+            char hash_buf[32];
             switch(opt_algo) {
             case ALGO_RR:
                 noncestr = bin2hex(((const unsigned char*)work->data) + 84, 4);
@@ -622,10 +624,21 @@ static bool submit_upstream_work(CURL *curl, struct work *work) {
                 noncestr = bin2hex(((const unsigned char*)work->data) + 39, 4);
                 cryptonight_hash(hash, work->data, 76);
             }
-            char *hashhex = bin2hex(hash, 32);
+            for (int i = 0; i < sizeof(noncestr)/2; ++i) {
+                for (int j = 0; j < 2; ++j) {
+                    noncestr_buf[(sizeof(noncestr)/2 - 1 - i) * 2 + j] = noncestr[i * 2 + j];
+                }
+            }
+                        
+            for (int i = 0; i < sizeof(hash); ++i) {
+                hash_buf[sizeof(hash) - 1 - i] = hash[i];
+            }
+            char *hashhex = bin2hex(hash_buf, 32);
+            memset(s, 0, JSON_BUF_LEN);
             snprintf(s, JSON_BUF_LEN,
-                    "{\"method\": \"submit\", \"params\": {\"id\": \"%s\", \"hash\": \"%s\", \"nonce\": \"%s\"}}\r\n",
-                    work->job_id, hashhex, noncestr);
+                    "{\"method\": \"submit\", \"params\": {\"id\": \"%s\", \"hash\": \"%s\", \"nonce\": \"%s\"}}",
+                    work->job_id, hashhex, noncestr_buf);
+            free(noncestr_buf);
             free(hashhex);
         } else {
             le32enc(&ntime, work->data[17]);
@@ -1522,6 +1535,7 @@ static void *stratum_thread(void *userdata) {
             applog(LOG_ERR, "Stratum connection interrupted");
             continue;
         }
+        
         if (!stratum_handle_method(&stratum, s))
             stratum_handle_response(s);
         free(s);
@@ -2039,51 +2053,6 @@ int main(int argc, char *argv[]) {
 
 	return 0;
 }
-
-/*static void transfer_target_to_256bits(uint32_t target, uint32_t *target256) {
-    memset(target256, 0, 8);
-
-    target = swab32(target);
-    int size = target >> 24;
-    uint32_t word = target & 0x007fffff;
-
-    if (size <= 3) {
-        word >>= 8 * (3 - size);
-        target256[7] = word;
-    } else {
-        if (((size - 3) % 4) == 0) {
-            target256[7 - (size - 3)/4] = word;
-        } else {
-            target256[7 - (size - 3)/4] = word << (8 * ((size - 3) % 4));
-            target256[7 - ((size - 3)/4 - 1)] = word << (8 * (4 - ((size - 3) % 4)));
-        }
-    }
-}
-
-static int scanhash_rr(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
-		uint32_t max_nonce, uint64_t *hashes_done) {
-	uint32_t *nonceptr = (uint32_t*) (((char*)pdata) + 84);
-	uint32_t n = *nonceptr - 1;
-	const uint32_t first_nonce = n + 1;
-    uint32_t target[8];
-    memset(target, 0, sizeof(target));
-    transfer_target_to_256bits(ptarget[7], target);
-
-    unsigned char hash[32];
-    memset(hash, 0, sizeof(hash));
-
-    do {
-        *nonceptr = ++n;
-        rr_slow_hash(pdata, 88, hash);
-        if ((uint32_t)(hash[0]) <= target[0]) { // todo: verify
-            *hashes_done = n - first_nonce + 1;
-            return true;
-        }
-    } while (likely((n <= max_nonce && !work_restart[thr_id].restart)));
-
-	*hashes_done = n - first_nonce + 1;
-	return 0;
-}*/
 
 static void transfer_target_to_256bits(uint32_t target, unsigned char *target256) {
     target = swab32(target);
