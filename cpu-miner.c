@@ -609,7 +609,8 @@ static bool submit_upstream_work(CURL *curl, struct work *work) {
     if (have_stratum) {
         uint32_t ntime, nonce;
         char *ntimestr, *noncestr, *xnonce2str, *noncestr_buf;
-        noncestr_buf = malloc(8);
+        noncestr_buf = malloc(9);
+        noncestr_buf[8] = 0;
 
         if (jsonrpc_2) {
             char hash[32];
@@ -638,7 +639,7 @@ static bool submit_upstream_work(CURL *curl, struct work *work) {
             snprintf(s, JSON_BUF_LEN,
                     "{\"method\": \"submit\", \"params\": {\"id\": \"%s\", \"hash\": \"%s\", \"nonce\": \"%s\"}}",
                     work->job_id, hashhex, noncestr_buf);
-            free(noncestr_buf);
+            applog(LOG_INFO, "----------Found mine! nonce: %s", noncestr_buf);
             free(hashhex);
         } else {
             le32enc(&ntime, work->data[17]);
@@ -652,6 +653,7 @@ static bool submit_upstream_work(CURL *curl, struct work *work) {
             free(ntimestr);
             free(xnonce2str);
         }
+        free(noncestr_buf);
         free(noncestr);
 
         if (unlikely(!stratum_send_line(&stratum, s))) {
@@ -2061,6 +2063,7 @@ static void transfer_target_to_256bits(uint32_t target, unsigned char *target256
 
     if (size <= 3) {
         word >>= 8 * (3 - size);
+        word = swab32(word);
         memcpy(target256 + 28, &word, 4);
     } else {
         int bits_of_left_shift = size - 3;
