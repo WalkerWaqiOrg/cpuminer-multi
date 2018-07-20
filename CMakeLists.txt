@@ -11,7 +11,7 @@ add_subdirectory(compat)
 include_directories(${JANSSON_INCLUDES})
 include_directories(${PROJECT_SOURCE_DIR})
 
-set(minerd_SOURCES elist.h
+set(shared_SOURCES elist.h
 		  miner.h
 		  compat.h
 		  cpu-miner.c
@@ -61,22 +61,29 @@ set(minerd_SOURCES elist.h
           #sha2-arm.S scrypt-arm.S aesb-arm.S crypto/aesb-x86-impl.c
 )
 
-set(CMAKE_C_FLAGS "-pthread -Ofast -fuse-linker-plugin -fno-strict-aliasing")
+set(CMAKE_C_FLAGS "-flto -pthread -Ofast -fuse-linker-plugin -fno-strict-aliasing")
 
-#  -flto
-
-#add_custom_target(jasson ${JANSSON_INCLUDES}/libjansson.a)
+# target1
+set(minerd_SOURCES ${shared_SOURCES} cpuminer_lib.c main.c)
 add_executable(minerd ${minerd_SOURCES})
 
+# target2
+set(libminerd_SOURCES ${shared_SOURCES} cpuminer_lib.c)
+add_library(libminerd STATIC ${libminerd_SOURCES})
 
+# target dependencies
+add_dependencies(minerd jansson)
+add_dependencies(libminerd jansson)
+
+# libs
 find_package(CURL REQUIRED)
 include_directories(${CURL_INCLUDE_DIR})
 target_link_libraries(minerd ${CURL_LIBRARY})
-
 target_link_libraries(minerd ${JANSSON_INCLUDES}/libjansson.a)
+target_link_libraries(minerd ${PROJECT_SOURCE_DIR}/rr_libs/libcncrypto.a)
+target_link_libraries(minerd ${PROJECT_SOURCE_DIR}/rr_libs/librr_libs.a)
 
-#add_dependencies(minerd jasson)
 
-
+# todo
 #target_link_libraries(minerd "-lpthread")
 #target_link_libraries(minerd "-lws2_32")

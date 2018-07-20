@@ -17,6 +17,7 @@ bin_PROGRAMS	= minerd
 dist_man_MANS	= minerd.1
 
 minerd_SOURCES	= elist.h \
+          main.c cpuminer_lib.c \
 		  miner.h \
 		  compat.h \
 		  cpu-miner.c \
@@ -75,3 +76,6 @@ minerd_LDFLAGS	= $(PTHREAD_FLAGS)
 minerd_LDADD	= @LIBCURL@ @JANSSON_LIBS@ @PTHREAD_LIBS@ @WS2_LIBS@ @RR_LIBS@
 minerd_CPPFLAGS = @LIBCURL_CPPFLAGS@
 minerd_CFLAGS   = -Ofast -flto -fuse-linker-plugin
+
+#noinst_LIBRARIES   = libminerd.a
+#libminerd_a_SOURCES = minerd_SOURCES

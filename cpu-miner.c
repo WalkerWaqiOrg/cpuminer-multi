@@ -136,6 +136,7 @@ static const char *algo_names[] = {
     [ALGO_RR] =          "rr",
 };
 
+bool stopping = false;
 bool opt_debug = false;
 bool opt_protocol = false;
 static bool opt_benchmark = false;
@@ -1107,6 +1108,9 @@ static void *miner_thread(void *userdata) {
         struct timeval tv_start, tv_end, diff;
         int64_t max64;
         int rc;
+        if (stopping) {
+            goto out;
+        }
 
         if (have_stratum) {
             while (time(NULL) >= g_work_time + 120)
@@ -1480,6 +1484,10 @@ static void *stratum_thread(void *userdata) {
 
     while (1) {
         int failures = 0;
+        if (stopping) {
+            tq_push(thr_info[work_thr_id].q, NULL );
+            goto out;
+        }
 
         while (!stratum.curl) {
             pthread_mutex_lock(&g_work_lock);
@@ -1879,7 +1887,69 @@ static bool has_aes_ni()
 	#endif
 }
 
-int main(int argc, char *argv[]) {
+void reset_all() {
+    optind = 0;
+
+    stopping = false;
+    opt_debug = false;
+    opt_protocol = false;
+    opt_benchmark = false;
+    opt_redirect = true;
+    want_longpoll = true;
+    have_longpoll = false;
+    want_stratum = true;
+    have_stratum = false;
+    submit_old = false;
+    use_syslog = false;
+    opt_background = false;
+    opt_quiet = false;
+    opt_retries = -1;
+    opt_fail_pause = 10;
+    jsonrpc_2 = false;
+    opt_timeout = 0;
+    opt_scantime = 5;
+    //opt_config;
+    //opt_time = true;
+    opt_algo = ALGO_SCRYPT;
+    opt_scrypt_n = 1024;
+    //opt_n_threads;
+    //num_processors;
+    //rpc_url;
+    //rpc_userpass;
+    //rpc_user;
+    //rpc_pass;
+    //opt_cert;
+    //opt_proxy;
+    //opt_proxy_type;
+    //thr_info;
+    //work_thr_id;
+    longpoll_thr_id = -1;
+    stratum_thr_id = -1;
+    work_restart = NULL;
+    //stratum;
+    rpc2_id[64] = "";
+    rpc2_blob = NULL;
+    //rpc2_hex[88];
+    rpc2_bloblen = 0;
+    rpc2_target = 0;
+    rpc2_job_id = NULL;
+    aes_ni_supported = false;
+
+    //applog_lock;
+    //stats_lock;
+    //rpc2_job_lock;
+    //rpc2_login_lock;
+
+    accepted_count = 0L;
+    rejected_count = 0L;
+    //thr_hashrates;
+
+    //work g_work;
+    //g_work_time;
+    //g_work_lock;
+}
+
+int start_miner_internal(int argc, char *argv[]) {
 	struct thr_info *thr;
 	long flags;
 	int i;
@@ -2051,9 +2121,23 @@ int main(int argc, char *argv[]) {
 	/* main loop - simply wait for workio thread to exit */
 	pthread_join(thr_info[work_thr_id].pth, NULL );
 
+    for (i = 0; i < opt_n_threads; i++) {
+        pthread_join(thr_info[i].pth, NULL );
+    }
+
+    reset_all();
+
 	applog(LOG_INFO, "workio thread dead, exiting.");
 
 	return 0;
+}
+
+void stop_miner_internal() {
+    restart_threads();
+
+    // Stop stratum thread which will terminal work io thread first
+    stopping = true;
+    stratum_disconnect(&stratum);
 }
 
 static void transfer_target_to_256bits(uint32_t target, unsigned char *target256) {
