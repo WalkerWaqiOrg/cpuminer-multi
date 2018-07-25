@@ -59,6 +59,16 @@ Build
 =====
 
 #### Basic *nix build instructions:
+ * git submodule update --init --recursive
+
+ * cd rr_libs
+
+ * cmake .
+
+ * make
+
+ * cd ..
+
  * ./autogen.sh	# only needed if building from git repo
 
  * ./nomacro.pl	# only needed if building on Mac OS X or with Clang
@@ -67,18 +77,6 @@ Build
    * # Use -march=native if building for a single machine
 
  * make
-
-Another build method:
-
-- ./autogen.sh	# only needed if building from git repo
-
-  - ./nomacro.pl	# only needed if building on Mac OS X or with Clang
-
-- ./configure CFLAGS="*-march=native*"
-
-  - # Use -march=native if building for a single machine
-
-- make
 
 - cmake .
 
@@ -97,41 +95,26 @@ Another build method:
    * Make sure you have curl-config in MinGW\bin
  * Install openssl devel (https://www.openssl.org/related/binaries.html)
  * In the MSYS shell, run:
-   * ./autogen.sh	# only needed if building from git repo
-   * LIBCURL="-lcurldll" ./configure CFLAGS="*-march=native*"
-     * # Use -march=native if building for a single machine
+   * git submodule update --init --recursive
+
+   * cd rr_libs
+
+   * cmake -G "MSYS Makefiles" .
+
    * make
 
-Another build method:
+   * cd ..
 
-- Install MinGW and the MSYS Developer Tool Kit (http://www.mingw.org/)
+   * ./autogen.sh	# only needed if building from git repo
 
-  - Make sure you have mstcpip.h in MinGW\include
+   * LIBCURL="-lcurldll" ./configure CFLAGS="*-march=native*"
+     * # Use -march=native if building for a single machine
 
-- If using MinGW-w64, install pthreads-w64
+   * make
 
-- Install libcurl devel (http://curl.haxx.se/download.html)
+   * cmake -DCURL_LIBRARY=C:\msys64\mingw64\lib -DCURL_INCLUDE_DIR=C:\msys64\mingw64\include\curl
 
-  - Make sure you have libcurl.m4 in MinGW\share\aclocal
-  - Make sure you have curl-config in MinGW\bin
-
-- Install openssl devel (https://www.openssl.org/related/binaries.html)
-
-- In the MSYS shell, run:
-
-  - ./autogen.sh	# only needed if building from git repo
-
-  - LIBCURL="-lcurldll" ./configure CFLAGS="*-march=native*"
-
-    - # Use -march=native if building for a single machine
-
-  - make
-
-  - cmake -DCURL_LIBRARY=C:\msys64\mingw64\lib -DCURL_INCLUDE_DIR=C:\msys64\mingw64\include\curl 
-
-  - make
-
-
+   * make
 
 #### Architecture-specific notes:
 

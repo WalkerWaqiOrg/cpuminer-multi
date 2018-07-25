@@ -39,6 +39,7 @@
 #include "compat.h"
 #include "miner.h"
 #include "rr_libs/include/rr_libs.h"
+#include "cpuminer_lib.h"
 
 #define PROGRAM_NAME		"minerd"
 #define LP_SCANTIME		60
@@ -156,7 +157,7 @@ int opt_timeout = 0;
 static int opt_scantime = 5;
 static json_t *opt_config;
 static const bool opt_time = true;
-static enum algos opt_algo = ALGO_SCRYPT;
+static enum algos opt_algo = ALGO_RR;
 static int opt_scrypt_n = 1024;
 static int opt_n_threads;
 static int num_processors;
@@ -188,10 +189,9 @@ static pthread_mutex_t rpc2_login_lock;
 static unsigned long accepted_count = 0L;
 static unsigned long rejected_count = 0L;
 static double *thr_hashrates;
+MINER_STATE_CHANGED g_miner_state_changed_func;
 
 static void transfer_target_to_256bits(uint32_t target, unsigned char *target256);
-
-//static void transfer_target_to_256bits(uint32_t target, uint32_t *target256);
 
 static int scanhash_rr(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
 		uint32_t max_nonce, uint64_t *hashes_done);
@@ -1506,6 +1506,10 @@ static void *stratum_thread(void *userdata) {
                 }
                 applog(LOG_ERR, "...retry after %d seconds", opt_fail_pause);
                 sleep(opt_fail_pause);
+            } else {
+                if (g_miner_state_changed_func) {
+                    (g_miner_state_changed_func)(0);
+                }
             }
         }
 
@@ -1543,6 +1547,9 @@ static void *stratum_thread(void *userdata) {
         if (!s) {
             stratum_disconnect(&stratum);
             applog(LOG_ERR, "Stratum connection interrupted");
+            if (g_miner_state_changed_func) {
+                (g_miner_state_changed_func)(1);
+            }
             continue;
         }
         
@@ -1908,12 +1915,14 @@ void reset_all() {
     jsonrpc_2 = false;
     opt_timeout = 0;
     opt_scantime = 5;
-    //opt_config;
+    if (opt_config) {
+        free(opt_config);
+    }
     //opt_time = true;
-    opt_algo = ALGO_SCRYPT;
+    opt_algo = ALGO_RR;
     opt_scrypt_n = 1024;
-    //opt_n_threads;
-    //num_processors;
+    opt_n_threads = 0;
+    num_processors = 0;
     //rpc_url;
     //rpc_userpass;
     //rpc_user;
@@ -1921,8 +1930,10 @@ void reset_all() {
     //opt_cert;
     //opt_proxy;
     //opt_proxy_type;
-    //thr_info;
-    //work_thr_id;
+    if (thr_info) {
+        free(thr_info);
+    }
+    work_thr_id = 0;
     longpoll_thr_id = -1;
     stratum_thr_id = -1;
     work_restart = NULL;
@@ -1935,21 +1946,27 @@ void reset_all() {
     rpc2_job_id = NULL;
     aes_ni_supported = false;
 
-    //applog_lock;
-    //stats_lock;
-    //rpc2_job_lock;
-    //rpc2_login_lock;
+	pthread_mutex_destroy(&applog_lock);
+	pthread_mutex_destroy(&stats_lock);
+	pthread_mutex_destroy(&g_work_lock);
+	pthread_mutex_destroy(&rpc2_job_lock);
+	pthread_mutex_destroy(&stratum.sock_lock);
+	pthread_mutex_destroy(&stratum.work_lock);
 
     accepted_count = 0L;
     rejected_count = 0L;
-    //thr_hashrates;
+    if (thr_hashrates) {
+        free(thr_hashrates);
+    }
 
     //work g_work;
     //g_work_time;
-    //g_work_lock;
+    //rpc2_login_lock
+
+    g_miner_state_changed_func = NULL;
 }
 
-int start_miner_internal(int argc, char *argv[]) {
+int start_miner_internal(int argc, char *argv[], MINER_STATE_CHANGED miner_state_changed_func) {
 	struct thr_info *thr;
 	long flags;
 	int i;
@@ -1959,6 +1976,7 @@ int start_miner_internal(int argc, char *argv[]) {
 
 	/* parse command line */
 	parse_cmdline(argc, argv);
+    g_miner_state_changed_func = miner_state_changed_func;
 
 	if (opt_algo == ALGO_QUARK) {
 		init_quarkhash_contexts();
@@ -2118,21 +2136,28 @@ int start_miner_internal(int argc, char *argv[]) {
 	applog(LOG_INFO, "%d miner threads started, "
 			"using '%s' algorithm.", opt_n_threads, algo_names[opt_algo]);
 
-	/* main loop - simply wait for workio thread to exit */
-	pthread_join(thr_info[work_thr_id].pth, NULL );
+    return 0;
+}
 
-    for (i = 0; i < opt_n_threads; i++) {
-        pthread_join(thr_info[i].pth, NULL );
+void monitor_miner_exit_internal() {
+    if (thr_info) {
+        /* main loop - simply wait for workio thread to exit */
+        pthread_join(thr_info[work_thr_id].pth, NULL );
+
+        for (int i = 0; i < opt_n_threads; i++) {
+            pthread_join(thr_info[i].pth, NULL );
+        }
     }
 
     reset_all();
 
-	applog(LOG_INFO, "workio thread dead, exiting.");
+	applog(LOG_INFO, "workio thread dead, exiting."); // todo: remove dead for lib
 
-	return 0;
+	return;
 }
 
 void stop_miner_internal() {
+    g_miner_state_changed_func = NULL;
     restart_threads();
 
     // Stop stratum thread which will terminal work io thread first

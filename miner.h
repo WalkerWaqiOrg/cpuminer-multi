@@ -9,6 +9,7 @@
 #include <pthread.h>
 #include <jansson.h>
 #include <curl/curl.h>
+#include "cpuminer_lib.h"
 
 #ifdef STDC_HEADERS
 # include <stdlib.h>
@@ -298,6 +299,10 @@ void stratum_disconnect(struct stratum_ctx *sctx);
 bool stratum_subscribe(struct stratum_ctx *sctx);
 bool stratum_authorize(struct stratum_ctx *sctx, const char *user, const char *pass);
 bool stratum_handle_method(struct stratum_ctx *sctx, const char *s);
+int start_miner_internal(int argc, char *argv[], MINER_STATE_CHANGED miner_state_changed_func);
+void monitor_miner_exit_internal();
+void stop_miner_internal();
+
 
 extern bool rpc2_job_decode(const json_t *job, struct work *work);
 extern bool rpc2_login_decode(const json_t *val);

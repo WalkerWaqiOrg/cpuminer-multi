@@ -5,8 +5,17 @@
 extern "C" {
 #endif
 
-int start_miner(int argc, char *argv[]);
+/* call back func type: MINER_STATE_CHANGED
+param:
+  state:
+    connected = 0
+    disconnected = 1
+*/
+typedef void (*MINER_STATE_CHANGED)(int state);
+
+int start_miner(int argc, char *argv[], MINER_STATE_CHANGED miner_state_changed_func);
 void stop_miner();
+int get_num_processors();
 
 #ifdef __cplusplus
 }

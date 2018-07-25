@@ -69,11 +69,11 @@ add_executable(minerd ${minerd_SOURCES})
 
 # target2
 set(libminerd_SOURCES ${shared_SOURCES} cpuminer_lib.c)
-add_library(libminerd STATIC ${libminerd_SOURCES})
+add_library(miner STATIC ${libminerd_SOURCES})
 
 # target dependencies
 add_dependencies(minerd jansson)
-add_dependencies(libminerd jansson)
+add_dependencies(miner jansson)
 
 # libs
 find_package(CURL REQUIRED)
