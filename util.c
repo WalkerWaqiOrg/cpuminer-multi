@@ -673,7 +673,9 @@ char *stratum_recv_line(struct stratum_ctx *sctx)
 			ssize_t n;
 
 			memset(s, 0, RBUFSIZE);
+			sctx->is_recving = true;
 			n = recv(sctx->sock, s, RECVSIZE, 0);
+			sctx->is_recving = false;
 			if (!n) {
 				ret = false;
 				break;

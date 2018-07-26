@@ -1113,8 +1113,12 @@ static void *miner_thread(void *userdata) {
         }
 
         if (have_stratum) {
-            while (time(NULL) >= g_work_time + 120)
+            while (time(NULL) >= g_work_time + 120) {
+                if (stopping) {
+                    goto out;
+                }
                 sleep(1);
+            }
             pthread_mutex_lock(&g_work_lock);
             if ((*nonceptr) >= end_nonce
            	    && !(jsonrpc_2 ? opt_algo == ALGO_RR ? memcmp(work.data, g_work.data, 84) :
@@ -1486,10 +1490,16 @@ static void *stratum_thread(void *userdata) {
         int failures = 0;
         if (stopping) {
             tq_push(thr_info[work_thr_id].q, NULL );
+            stratum_disconnect(&stratum);
             goto out;
         }
 
         while (!stratum.curl) {
+            if (stopping) {
+                tq_push(thr_info[work_thr_id].q, NULL );
+                stratum_disconnect(&stratum);
+                goto out;
+            }
             pthread_mutex_lock(&g_work_lock);
             g_work_time = 0;
             pthread_mutex_unlock(&g_work_lock);
@@ -1917,6 +1927,7 @@ void reset_all() {
     opt_scantime = 5;
     if (opt_config) {
         free(opt_config);
+        opt_config = NULL;
     }
     //opt_time = true;
     opt_algo = ALGO_RR;
@@ -1931,13 +1942,19 @@ void reset_all() {
     //opt_proxy;
     //opt_proxy_type;
     if (thr_info) {
+        /*tq_free(thr_info[work_thr_id].q);
+        tq_free(thr_info[stratum_thr_id].q);
+    	for (int i = 0; i < opt_n_threads; i++) {
+		    tq_free(thr_info[i].q);
+        }
         free(thr_info);
+        thr_info = NULL;*/
     }
     work_thr_id = 0;
     longpoll_thr_id = -1;
     stratum_thr_id = -1;
     work_restart = NULL;
-    //stratum;
+    stratum.is_recving = false;
     rpc2_id[64] = "";
     rpc2_blob = NULL;
     //rpc2_hex[88];
@@ -1957,10 +1974,11 @@ void reset_all() {
     rejected_count = 0L;
     if (thr_hashrates) {
         free(thr_hashrates);
+        thr_hashrates = NULL;
     }
 
     //work g_work;
-    //g_work_time;
+    g_work_time = 0;
     //rpc2_login_lock
 
     g_miner_state_changed_func = NULL;
@@ -1973,6 +1991,7 @@ int start_miner_internal(int argc, char *argv[], MINER_STATE_CHANGED miner_state
 
 	rpc_user = strdup("");
 	rpc_pass = strdup("");
+    stratum.is_recving = false;
 
 	/* parse command line */
 	parse_cmdline(argc, argv);
@@ -2162,7 +2181,9 @@ void stop_miner_internal() {
 
     // Stop stratum thread which will terminal work io thread first
     stopping = true;
-    stratum_disconnect(&stratum);
+    if (stratum.is_recving) {
+        stratum_disconnect(&stratum);
+    }
 }
 
 static void transfer_target_to_256bits(uint32_t target, unsigned char *target256) {

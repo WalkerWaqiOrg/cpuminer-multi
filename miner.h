@@ -289,6 +289,7 @@ struct stratum_ctx {
 	struct stratum_job job;
 	struct work work;
 	pthread_mutex_t work_lock;
+	bool is_recving;
 };
 
 bool stratum_socket_full(struct stratum_ctx *sctx, int timeout);

@@ -107,12 +107,15 @@ Build
 
    * ./autogen.sh	# only needed if building from git repo
 
-   * LIBCURL="-lcurldll" ./configure CFLAGS="*-march=native*"
-     * # Use -march=native if building for a single machine
+   * ./configure
+
+     * not work currently: LIBCURL="-lcurldll" ./configure CFLAGS="*-march=native*"
+
+       * # Use -march=native if building for a single machine
 
    * make
 
-   * cmake -DCURL_LIBRARY=C:\msys64\mingw64\lib -DCURL_INCLUDE_DIR=C:\msys64\mingw64\include\curl
+   * cmake -DCURL_LIBRARY=C:\msys64\mingw64\lib -DCURL_INCLUDE_DIR=C:\msys64\mingw64\include\curl .
 
    * make
 
