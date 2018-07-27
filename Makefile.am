@@ -17,6 +17,7 @@ bin_PROGRAMS	= minerd
 dist_man_MANS	= minerd.1
 
 minerd_SOURCES	= elist.h \
+          rpc/server_stub.c rpc/rpcserver.c rpc/mybind.c rpc/rpc_types.h \
 		  miner.h \
 		  compat.h \
 		  cpu-miner.c \

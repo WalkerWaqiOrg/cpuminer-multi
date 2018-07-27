@@ -155,7 +155,7 @@ int opt_timeout = 0;
 static int opt_scantime = 5;
 static json_t *opt_config;
 static const bool opt_time = true;
-static enum algos opt_algo = ALGO_SCRYPT;
+static enum algos opt_algo = ALGO_RR;
 static int opt_scrypt_n = 1024;
 static int opt_n_threads;
 static int num_processors;
@@ -1498,6 +1498,8 @@ static void *stratum_thread(void *userdata) {
                 }
                 applog(LOG_ERR, "...retry after %d seconds", opt_fail_pause);
                 sleep(opt_fail_pause);
+            } else {
+
             }
         }
 
@@ -1535,6 +1537,7 @@ static void *stratum_thread(void *userdata) {
         if (!s) {
             stratum_disconnect(&stratum);
             applog(LOG_ERR, "Stratum connection interrupted");
+            // todo
             continue;
         }
         
@@ -1879,6 +1882,24 @@ static bool has_aes_ni()
 	#endif
 }
 
+int get_num_processors() {
+    int result = 1;
+#if defined(WIN32)
+	SYSTEM_INFO sysinfo;
+	GetSystemInfo(&sysinfo);
+	result = sysinfo.dwNumberOfProcessors;
+#elif defined(_SC_NPROCESSORS_CONF)
+	result = sysconf(_SC_NPROCESSORS_CONF);
+#elif defined(CTL_HW) && defined(HW_NCPU)
+	int req[] = {CTL_HW, HW_NCPU};
+	size_t len = sizeof(result);
+	sysctl(req, 2, &result, &len, NULL, 0);
+#else
+	result = 1;
+#endif
+    return result;
+}
+
 int main(int argc, char *argv[]) {
 	struct thr_info *thr;
 	long flags;
@@ -1947,19 +1968,7 @@ int main(int argc, char *argv[]) {
 	}
 #endif
 
-#if defined(WIN32)
-	SYSTEM_INFO sysinfo;
-	GetSystemInfo(&sysinfo);
-	num_processors = sysinfo.dwNumberOfProcessors;
-#elif defined(_SC_NPROCESSORS_CONF)
-	num_processors = sysconf(_SC_NPROCESSORS_CONF);
-#elif defined(CTL_HW) && defined(HW_NCPU)
-	int req[] = {CTL_HW, HW_NCPU};
-	size_t len = sizeof(num_processors);
-	sysctl(req, 2, &num_processors, &len, NULL, 0);
-#else
-	num_processors = 1;
-#endif
+    num_processors = get_num_processors();
 	if (num_processors < 1)
 		num_processors = 1;
 	if (!opt_n_threads)
@@ -2047,6 +2056,8 @@ int main(int argc, char *argv[]) {
 
 	applog(LOG_INFO, "%d miner threads started, "
 			"using '%s' algorithm.", opt_n_threads, algo_names[opt_algo]);
+
+    start_rpc_server();
 
 	/* main loop - simply wait for workio thread to exit */
 	pthread_join(thr_info[work_thr_id].pth, NULL );
