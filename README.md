@@ -128,8 +128,11 @@ Another build method:
 
    * ./autogen.sh	# only needed if building from git repo
 
-   * LIBCURL="-lcurldll" ./configure CFLAGS="*-march=native*"
-     * # Use -march=native if building for a single machine
+   * ./configure
+
+     * following doesn't work currently: LIBCURL="-lcurldll" ./configure CFLAGS="*-march=native*"
+
+       * # Use -march=native if building for a single machine
 
    * make
 

@@ -310,7 +310,7 @@ static pthread_mutex_t g_work_lock;
 
 const int STATE_DISCONNECTED = 0;
 const int STATE_CONNECTED = 1;
-int g_state = STATE_DISCONNECTED;
+int g_state = 0; //STATE_DISCONNECTED
 int g_rpcserverport = 10000;
 
 static bool rpc2_login(CURL *curl);
