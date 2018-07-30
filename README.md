@@ -59,6 +59,16 @@ Build
 =====
 
 #### Basic *nix build instructions:
+ * git submodule update --init --recursive
+
+ * cd rr_libs
+
+ * cmake .
+
+ * make
+
+ * cd ..
+
  * ./autogen.sh	# only needed if building from git repo
 
  * ./nomacro.pl	# only needed if building on Mac OS X or with Clang
@@ -70,8 +80,17 @@ Build
 
 Another build method:
 
-- ./autogen.sh	# only needed if building from git repo
+- git submodule update --init --recursive
 
+- cd rr_libs
+
+- cmake .
+
+- make
+
+- cd ..
+
+- ./autogen.sh	# only needed if building from git repo
   - ./nomacro.pl	# only needed if building on Mac OS X or with Clang
 
 - ./configure CFLAGS="*-march=native*"
@@ -97,9 +116,21 @@ Another build method:
    * Make sure you have curl-config in MinGW\bin
  * Install openssl devel (https://www.openssl.org/related/binaries.html)
  * In the MSYS shell, run:
+   * git submodule update --init --recursive
+
+   * cd rr_libs
+
+   * cmake -G "MSYS Makefiles" .
+
+   * make
+
+   * cd ..
+
    * ./autogen.sh	# only needed if building from git repo
+
    * LIBCURL="-lcurldll" ./configure CFLAGS="*-march=native*"
      * # Use -march=native if building for a single machine
+
    * make
 
 Another build method:
@@ -119,15 +150,27 @@ Another build method:
 
 - In the MSYS shell, run:
 
-  - ./autogen.sh	# only needed if building from git repo
+  - git submodule update --init --recursive
 
-  - LIBCURL="-lcurldll" ./configure CFLAGS="*-march=native*"
+  - cd rr_libs
 
-    - # Use -march=native if building for a single machine
+  - cmake -G "MSYS Makefiles" .
 
   - make
 
-  - cmake -DCURL_LIBRARY=C:\msys64\mingw64\lib -DCURL_INCLUDE_DIR=C:\msys64\mingw64\include\curl 
+  - cd ..
+
+  - ./autogen.sh	# only needed if building from git repo
+
+  - ./configure
+
+    - following doesn't work currently: LIBCURL="-lcurldll" ./configure CFLAGS="*-march=native*"
+
+      - # Use -march=native if building for a single machine
+
+  - make
+
+  - cmake -DCURL_LIBRARY=C:\msys64\mingw64\lib -DCURL_INCLUDE_DIR=C:\msys64\mingw64\include\curl .
 
   - make
 

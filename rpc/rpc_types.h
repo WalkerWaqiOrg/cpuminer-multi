@@ -1,5 +1,9 @@
 #include <stdbool.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /* returnType */
 typedef struct {
     void   *return_val;
@@ -57,3 +61,7 @@ extern return_type make_remote_call(const char *servernameorip,
 	                            const char *procedure_name,
 	                            const int nparams,
 				    ...);
+
+#ifdef __cplusplus
+}
+#endif

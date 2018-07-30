@@ -230,6 +230,9 @@ extern struct work_restart *work_restart;
 extern bool jsonrpc_2;
 extern bool aes_ni_supported;
 
+extern int g_state;
+extern int g_rpcserverport;
+
 #define JSON_RPC_LONGPOLL	(1 << 0)
 #define JSON_RPC_QUIET_404	(1 << 1)
 #define JSON_RPC_IGNOREERR  (1 << 2)

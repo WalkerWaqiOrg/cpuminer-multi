@@ -211,7 +211,7 @@ static char const usage[] =
 Usage: " PROGRAM_NAME " [OPTIONS]\n\
 Options:\n\
   -a, --algo=ALGO       specify the algorithm to use\n\
-                          scrypt       scrypt(1024, 1, 1) (default)\n\
+                          scrypt       scrypt(1024, 1, 1)\n\
                           scrypt:N     scrypt(N, 1, 1)\n\
                           sha256d      SHA-256d\n\
                           keccak       Keccak\n\
@@ -226,6 +226,7 @@ Options:\n\
                           x14          X14\n\
                           x15          X15\n\
                           cryptonight  CryptoNight\n\
+                          rr           rr (default)\n\
   -o, --url=URL         URL of mining server\n\
   -O, --userpass=U:P    username:password pair for mining server\n\
   -u, --user=USERNAME   username for mining server\n\
@@ -242,6 +243,7 @@ Options:\n\
       --no-longpoll     disable X-Long-Polling support\n\
       --no-stratum      disable X-Stratum support\n\
       --no-redirect     ignore requests to change the URL of the mining server\n\
+      --rpcserverport   RPC Server port for client to stop or check state (default: 10000)\n\
   -q, --quiet           disable per-thread hashmeter output\n\
   -D, --debug           enable debug output\n\
   -P, --protocol-dump   verbose dump of protocol-level activities\n"
@@ -298,12 +300,18 @@ static struct option const options[] = {
         { "user", 1, NULL, 'u' },
         { "userpass", 1, NULL, 'O' },
         { "version", 0, NULL, 'V' },
+        { "rpcserverport", 1, NULL, 1011 },
         { 0, 0, 0, 0 }
 };
 
 static struct work g_work;
 static time_t g_work_time;
 static pthread_mutex_t g_work_lock;
+
+const int STATE_DISCONNECTED = 0;
+const int STATE_CONNECTED = 1;
+int g_state = STATE_DISCONNECTED;
+int g_rpcserverport = 10000;
 
 static bool rpc2_login(CURL *curl);
 static void workio_cmd_free(struct workio_cmd *wc);
@@ -1491,6 +1499,7 @@ static void *stratum_thread(void *userdata) {
                     || !stratum_subscribe(&stratum)
                     || !stratum_authorize(&stratum, rpc_user, rpc_pass)) {
                 stratum_disconnect(&stratum);
+                g_state = STATE_DISCONNECTED;
                 if (opt_retries >= 0 && ++failures > opt_retries) {
                     applog(LOG_ERR, "...terminating workio thread");
                     tq_push(thr_info[work_thr_id].q, NULL );
@@ -1499,7 +1508,7 @@ static void *stratum_thread(void *userdata) {
                 applog(LOG_ERR, "...retry after %d seconds", opt_fail_pause);
                 sleep(opt_fail_pause);
             } else {
-
+                g_state = STATE_CONNECTED;
             }
         }
 
@@ -1537,7 +1546,7 @@ static void *stratum_thread(void *userdata) {
         if (!s) {
             stratum_disconnect(&stratum);
             applog(LOG_ERR, "Stratum connection interrupted");
-            // todo
+            g_state = STATE_DISCONNECTED;
             continue;
         }
         
@@ -1779,6 +1788,12 @@ static void parse_arg(int key, char *arg) {
         break;
     case 1009:
         opt_redirect = false;
+        break;
+    case 1011:
+        v = atoi(arg);
+        if (v < 1 || v > 99999) /* sanity check */
+            show_usage_and_exit(1);
+        g_rpcserverport = v;
         break;
     case 'S':
         use_syslog = true;

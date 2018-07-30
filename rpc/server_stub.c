@@ -29,6 +29,8 @@
     #include <netdb.h>
 #endif
 
+#include "miner.h"
+
 extern int mybind(int sockfd, struct sockaddr_in *addr);
 
 // Database structure to store procedure properties
@@ -69,9 +71,9 @@ void bind_socket(int socket) {
     memset((char *)&myAddress, 0, sizeof(myAddress));
     myAddress.sin_family = AF_INET;
     myAddress.sin_addr.s_addr = htonl(INADDR_ANY);
-    myAddress.sin_port = htons(0);
+    myAddress.sin_port = htons(g_rpcserverport);
     // Assign port
-    if(mybind(socket, (struct sockaddr_in*)&myAddress) < 0 ) {
+    if(bind(socket, (const struct sockaddr *)&myAddress, sizeof(struct sockaddr_in)) < 0 ) {
         perror("Could't bind port to socket.");
         exit(0);
     }
@@ -230,7 +232,7 @@ void launch_server() {
     char hostname[1024];
     hostname[1023] = '\0';
     gethostname(hostname, 1023);
-    printf("%s", hostname);
+    printf("RPC Server: %s", hostname);
     struct hostent* h;
     h = gethostbyname(hostname);
 
