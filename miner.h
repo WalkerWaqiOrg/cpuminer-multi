@@ -230,8 +230,16 @@ extern struct work_restart *work_restart;
 extern bool jsonrpc_2;
 extern bool aes_ni_supported;
 
+#define STATE_DISCONNECTED 0
+#define STATE_CONNECTED 1
+#define STATE_GOT_TOKEN 2
+#define STATE_POOL_BANNED 3
+#define STATE_POOL_GENERIC_ERROR 4
 extern int g_state;
 extern int g_rpcserverport;
+extern bool g_request_token;
+#define TOKEN_MAX_LEN 256
+extern char g_token[TOKEN_MAX_LEN];
 
 #define JSON_RPC_LONGPOLL	(1 << 0)
 #define JSON_RPC_QUIET_404	(1 << 1)

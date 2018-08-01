@@ -28,6 +28,7 @@
 
 const int client_port = 10069;
 const int buffer_size = 512;
+unsigned char g_return_value[buffer_size];
 
 /**
  * Serializes int values into a character buffer.
@@ -155,16 +156,16 @@ return_type make_remote_call(const char *servernameorip,
              // Got a good message! Woot!
              unsigned char *return_value_buffer = receive_buffer + 4;
              int return_size = *(int*)receive_buffer;
-             unsigned char return_value[return_size];
+             memset(g_return_value, 0, buffer_size);
 
              int k = 0;
              while (k < return_size) {
-                 return_value[k] = return_value_buffer[k];
+                 g_return_value[k] = return_value_buffer[k];
                  k++;
              }
 
              memset((unsigned char *)&rt, 0, sizeof(rt));
-             rt.return_val = return_value;
+             rt.return_val = g_return_value;//return_value;
              rt.return_size = return_size;
              return rt;
          } else { // mychange: add retry count. todo: no need to recv after sending "exit"

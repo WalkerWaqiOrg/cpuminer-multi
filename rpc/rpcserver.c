@@ -51,6 +51,19 @@ return_type get_state_rpc(const int nparams, arg_type* a) {
     return r;
 }
 
+return_type get_token_rpc(const int nparams, arg_type* a) {
+    if(nparams != 0) {
+        /* Error! */
+        r.return_val = NULL;
+        r.return_size = 0;
+        return r;
+    }
+    r.return_val = g_token;
+    r.return_size = strlen(g_token);
+
+    return r;
+}
+
 void *rpcserver_thread(void *userdata) {
     launch_server();
 }
@@ -60,6 +73,7 @@ void start_rpc_server() {
         register_procedure("stop", 0, stop_rpc);
         register_procedure("get_num_processors", 0, get_num_processors_rpc);
         register_procedure("get_state", 0, get_state_rpc);
+        register_procedure("get_token", 0, get_token_rpc);
 
         thread = calloc(1, sizeof(thr_info));
         thread->id = 100;

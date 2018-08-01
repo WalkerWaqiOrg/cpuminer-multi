@@ -799,6 +799,7 @@ void stratum_disconnect(struct stratum_ctx *sctx)
 		sctx->curl = NULL;
 		sctx->sockbuf[0] = '\0';
 	}
+    g_state = STATE_DISCONNECTED;
 	pthread_mutex_unlock(&sctx->sock_lock);
 }
 
@@ -936,7 +937,12 @@ bool stratum_authorize(struct stratum_ctx *sctx, const char *user, const char *p
 
 	if(jsonrpc_2) {
         s = malloc(80 + strlen(user));
-        sprintf(s, "{\"method\": \"login\", \"params\": {\"user\": \"%s\"}}", user);
+		char *request_token = "false";
+		if (g_request_token) {
+			request_token = "true";
+		}
+        sprintf(s, "{\"method\": \"login\", \"params\": {\"hc\": %d, \"token\": %s, \"uid\": \"%s\"}}",
+			get_num_processors(), request_token, user);
 	} else {
         s = malloc(80 + strlen(user) + strlen(pass));
         sprintf(s, "{\"id\": 2, \"method\": \"mining.authorize\", \"params\": [\"%s\", \"%s\"]}",
@@ -996,6 +1002,17 @@ static bool stratum_2_job(struct stratum_ctx *sctx, json_t *params)
     ret = rpc2_job_decode(params, &sctx->work);
     pthread_mutex_unlock(&sctx->work_lock);
     return ret;
+}
+
+static bool stratum_2_token(struct stratum_ctx *sctx, json_t *root)
+{
+    pthread_mutex_lock(&sctx->work_lock);
+    memset(g_token, 0, TOKEN_MAX_LEN);
+    const char *data = json_string_value(json_object_get(root, "data"));
+    memcpy(g_token, data, strlen(data));
+	g_state = STATE_GOT_TOKEN;
+    pthread_mutex_unlock(&sctx->work_lock);
+    return true;
 }
 
 static bool stratum_notify(struct stratum_ctx *sctx, json_t *params)
@@ -1201,8 +1218,19 @@ bool stratum_handle_method(struct stratum_ctx *sctx, const char *s)
             ret = stratum_2_job(sctx, params);
             goto out;
         }
+        if (!strcasecmp(method, "token")) {
+            ret = stratum_2_token(sctx, val);
+            goto out;
+        }
+        if (!strcasecmp(method, "banned")) {
+            g_state = STATE_POOL_BANNED;
+			ret = true;
+            goto out;
+        }
         if (!strcasecmp(method, "error")) {
-            //ret = stratum_2_job(sctx, params); todo
+            g_state = STATE_POOL_GENERIC_ERROR;
+            const char *msg = json_string_value(json_object_get(val, "msg"));
+            applog(LOG_INFO, "Received miner pool error: %s", msg);
 			ret = true;
             goto out;
         }
