@@ -38,7 +38,8 @@
 #include <curl/curl.h>
 #include "compat.h"
 #include "miner.h"
-#include "rr_libs/include/rr_libs.h"
+//#include "rr_libs/include/rr_libs.h"
+#include "rrhash.h"
 
 #define PROGRAM_NAME		"minerd"
 #define LP_SCANTIME		60
@@ -1952,6 +1953,8 @@ int main(int argc, char *argv[]) {
 		sprintf(rpc_userpass, "%s:%s", rpc_user, rpc_pass);
 	}
 
+    rrhash_init();
+
 	pthread_mutex_init(&applog_lock, NULL );
 	pthread_mutex_init(&stats_lock, NULL );
 	pthread_mutex_init(&g_work_lock, NULL );
@@ -2079,6 +2082,8 @@ int main(int argc, char *argv[]) {
 	/* main loop - simply wait for workio thread to exit */
 	pthread_join(thr_info[work_thr_id].pth, NULL );
 
+    rrhash_release();
+
 	applog(LOG_INFO, "workio thread dead, exiting.");
 
 	return 0;
@@ -2116,7 +2121,8 @@ static int scanhash_rr(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
 
     do {
         *nonceptr = ++n;
-        rr_slow_hash(pdata, 88, hash);
+        //rr_slow_hash(pdata, 88, hash);
+        rrhash(pdata, 88, hash);
         for (int j = 0; j < sizeof(hash); ++j) {
             hash_buf[sizeof(hash) - 1 - j] = hash[j];
         }

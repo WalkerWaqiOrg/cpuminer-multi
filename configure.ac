@@ -52,12 +52,14 @@ esac
 
 PTHREAD_FLAGS="-pthread"
 WS2_LIBS=""
+DLL_LIBS="-ldl"
 
 case $target in
   *-*-mingw*)
     have_win32=true
     PTHREAD_FLAGS=""
     WS2_LIBS="-lws2_32"
+    DLL_LIBS="$DLL_LIBS -lpsapi"
     ;;
 esac
 
@@ -136,6 +138,7 @@ AC_SUBST(PTHREAD_FLAGS)
 AC_SUBST(PTHREAD_LIBS)
 AC_SUBST(WS2_LIBS)
 AC_SUBST(RR_LIBS)
+AC_SUBST(DLL_LIBS)
 
 AC_CONFIG_FILES([
 	Makefile
