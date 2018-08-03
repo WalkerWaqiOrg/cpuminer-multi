@@ -38,7 +38,6 @@
 #include <curl/curl.h>
 #include "compat.h"
 #include "miner.h"
-//#include "rr_libs/include/rr_libs.h"
 #include "rrhash.h"
 
 #define PROGRAM_NAME		"minerd"
@@ -628,7 +627,7 @@ static bool submit_upstream_work(CURL *curl, struct work *work) {
             switch(opt_algo) {
             case ALGO_RR:
                 noncestr = bin2hex(((const unsigned char*)work->data) + 84, 4);
-                rr_slow_hash(work->data, 88, hash);
+                rrhash(work->data, 88, hash);
                 break;
             case ALGO_CRYPTONIGHT:
             default:
@@ -2121,7 +2120,6 @@ static int scanhash_rr(int thr_id, uint32_t *pdata, const uint32_t *ptarget,
 
     do {
         *nonceptr = ++n;
-        //rr_slow_hash(pdata, 88, hash);
         rrhash(pdata, 88, hash);
         for (int j = 0; j < sizeof(hash); ++j) {
             hash_buf[sizeof(hash) - 1 - j] = hash[j];

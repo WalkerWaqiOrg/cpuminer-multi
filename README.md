@@ -59,16 +59,6 @@ Build
 =====
 
 #### Basic *nix build instructions:
- * git submodule update --init --recursive
-
- * cd rr_libs
-
- * cmake .
-
- * make
-
- * cd ..
-
  * ./autogen.sh	# only needed if building from git repo
 
  * ./nomacro.pl	# only needed if building on Mac OS X or with Clang
@@ -79,16 +69,6 @@ Build
  * make
 
 Another build method:
-
-- git submodule update --init --recursive
-
-- cd rr_libs
-
-- cmake .
-
-- make
-
-- cd ..
 
 - ./autogen.sh	# only needed if building from git repo
   - ./nomacro.pl	# only needed if building on Mac OS X or with Clang
@@ -116,16 +96,6 @@ Another build method:
    * Make sure you have curl-config in MinGW\bin
  * Install openssl devel (https://www.openssl.org/related/binaries.html)
  * In the MSYS shell, run:
-   * git submodule update --init --recursive
-
-   * cd rr_libs
-
-   * cmake -G "MSYS Makefiles" .
-
-   * make
-
-   * cd ..
-
    * ./autogen.sh	# only needed if building from git repo
 
    * ./configure
@@ -152,16 +122,6 @@ Another build method:
 - Install openssl devel (https://www.openssl.org/related/binaries.html)
 
 - In the MSYS shell, run:
-
-  - git submodule update --init --recursive
-
-  - cd rr_libs
-
-  - cmake -G "MSYS Makefiles" .
-
-  - make
-
-  - cd ..
 
   - ./autogen.sh	# only needed if building from git repo
 
