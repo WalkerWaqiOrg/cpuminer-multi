@@ -675,6 +675,7 @@ char *stratum_recv_line(struct stratum_ctx *sctx)
 			memset(s, 0, RBUFSIZE);
 			n = recv(sctx->sock, s, RECVSIZE, 0);
 			if (!n) {
+				applog(LOG_ERR, "Socket error: %s", strerror(errno));
 				ret = false;
 				break;
 			}

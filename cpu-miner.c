@@ -1546,6 +1546,8 @@ static void *stratum_thread(void *userdata) {
         if (!s) {
             stratum_disconnect(&stratum);
             applog(LOG_ERR, "Stratum connection interrupted");
+            applog(LOG_ERR, "...retry after %d seconds", opt_fail_pause);
+            sleep(opt_fail_pause);
             continue;
         }
         
