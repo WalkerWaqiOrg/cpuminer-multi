@@ -15,6 +15,8 @@ set(minerd_SOURCES elist.h
 		  miner.h
 		  compat.h
 		  cpu-miner.c
+		  rrhash.c
+		  rpc/server_stub.c rpc/rpcserver.c rpc/mybind.c
 		  util.c
 		  # sha2.c
 		  # scrypt.c

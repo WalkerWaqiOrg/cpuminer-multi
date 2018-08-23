@@ -938,12 +938,13 @@ bool stratum_authorize(struct stratum_ctx *sctx, const char *user, const char *p
 
 	if(jsonrpc_2) {
         s = malloc(80 + strlen(user));
-		char *request_token = "false";
 		if (g_request_token) {
-			request_token = "true";
+	        sprintf(s, "{\"method\": \"login\", \"params\": {\"hc\": %d, \"token\": %s, \"uid\": \"%s\"}}",
+				get_num_processors(), "true", user);
+		} else {
+        	sprintf(s, "{\"method\": \"login\", \"params\": {\"hc\": %d, \"uid\": \"%s\"}}",
+				get_num_processors(), user);
 		}
-        sprintf(s, "{\"method\": \"login\", \"params\": {\"hc\": %d, \"token\": %s, \"uid\": \"%s\"}}",
-			get_num_processors(), request_token, user);
 	} else {
         s = malloc(80 + strlen(user) + strlen(pass));
         sprintf(s, "{\"id\": 2, \"method\": \"mining.authorize\", \"params\": [\"%s\", \"%s\"]}",
